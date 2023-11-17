@@ -227,7 +227,7 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
     public String buildEnvSql(AbstractStatementDTO task) {
         log.info("Start initialize FlinkSQLEnv:");
         String sql = CommonConstant.LineSep;
-        if (task.isFragment()) {
+        if (task.getFragment()) {
             String flinkWithSql = dataBaseService.getEnabledFlinkWithSql();
             if (Asserts.isNotNullString(flinkWithSql)) {
                 sql += flinkWithSql + CommonConstant.LineSep;
@@ -387,9 +387,6 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
         }
 
         JobManager jobManager = JobManager.build(config);
-        if (config.isJarTask()) {
-            return "";
-        }
 
         return jobManager.exportSql(task.getStatement());
     }
