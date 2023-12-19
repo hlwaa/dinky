@@ -139,7 +139,8 @@ export const buildEnvOptions = (env: any[]) => {
     envList.push({
       label: tag,
       value: item.id,
-      key: item.id
+      key: item.id,
+      disabled: !item.enabled
     });
   }
   return envList;
@@ -161,7 +162,7 @@ export const buildAlertGroupOptions = (alertGroups: Alert.AlertGroup[]) => {
       key: -1
     }
   ];
-  for (const item of alertGroups) {
+  alertGroups?.forEach((item) => {
     alertGroupOptions.push({
       label: (
         <TagAlignLeft>
@@ -172,13 +173,13 @@ export const buildAlertGroupOptions = (alertGroups: Alert.AlertGroup[]) => {
       value: item.id,
       key: item.id
     });
-  }
+  });
   return alertGroupOptions;
 };
 
 /**
  * 计算右侧 proform list 组件宽度
- * @returns {number}
+ * @param width
  */
 export const calculatorWidth = (width: number) => {
   const resultWidth = width - 50; // 50 为右侧 proform list 组件的 删除按钮宽度

@@ -21,18 +21,19 @@ import * as monaco from 'monaco-editor';
 import { editor, languages, Position } from 'monaco-editor';
 
 import { buildAllSuggestionsToEditor } from '@/components/CustomEditor/CodeEdit/function';
-import EditorFloatBtn from '@/components/CustomEditor/EditorFloatBtn';
-import { LoadCustomEditorLanguage } from '@/components/CustomEditor/languages';
+import { handleInitEditorAndLanguageOnBeforeMount } from '@/components/CustomEditor/function';
 import { StateType } from '@/pages/DataStudio/model';
-import { MonacoEditorOptions } from '@/types/Public/data';
+import { MonacoEditorOptions, SuggestionInfo } from '@/types/Public/data';
 import { convertCodeEditTheme } from '@/utils/function';
-import { Editor, Monaco, OnChange, useMonaco } from '@monaco-editor/react';
+import { Editor, Monaco, OnChange } from '@monaco-editor/react';
 import { connect } from '@umijs/max';
 import useMemoCallback from 'rc-menu/es/hooks/useMemoCallback';
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import ITextModel = editor.ITextModel;
 import CompletionItem = languages.CompletionItem;
 import CompletionContext = languages.CompletionContext;
+import CompletionList = languages.CompletionList;
+import ProviderResult = languages.ProviderResult;
 
 let provider = {
   dispose: () => {}
@@ -48,11 +49,9 @@ export type CodeEditFormProps = {
   readOnly?: boolean;
   lineNumbers?: string;
   autoWrap?: string;
-  showFloatButton?: boolean;
   editorDidMount?: (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => void;
   enableSuggestions?: boolean;
   monacoRef?: any;
-  editorRef?: any;
 };
 
 const CodeEdit = (props: CodeEditFormProps & connect) => {
@@ -73,9 +72,7 @@ const CodeEdit = (props: CodeEditFormProps & connect) => {
     height = '100%', // if null or undefined, set default value
     width = '100%', // if null or undefined, set default value
     language, // edit language
-    options = {
-      ...MonacoEditorOptions // set default options
-    },
+    options,
     onChange, // edit change callback
     code, // content
     readOnly = false, // is readOnly
@@ -83,28 +80,16 @@ const CodeEdit = (props: CodeEditFormProps & connect) => {
     enableSuggestions = false, // enable suggestions
     suggestionsData, // suggestions data
     autoWrap = 'on', // auto wrap
-    showFloatButton = false,
     editorDidMount,
-    editorRef,
     monacoRef,
     tabs: { activeKey }
   } = props;
 
-  const editorInstance = useRef<editor.IStandaloneCodeEditor | any>(editorRef);
-  const monacoInstance = useRef<Monaco | any>(monacoRef);
+  const editorInstance = useRef<editor.IStandaloneCodeEditor | undefined>(
+    monacoRef?.current?.editor
+  );
+  const monacoInstance = useRef<Monaco | undefined>(monacoRef);
 
-  const { ScrollType } = editor;
-
-  // 使用编辑器钩子, 拿到编辑器实例
-  const monacoHook = useMonaco();
-
-  useEffect(() => {
-    convertCodeEditTheme(monacoHook?.editor);
-    // 需要调用 手动注册下自定义语言
-    LoadCustomEditorLanguage(monacoHook);
-  }, [monacoHook]);
-
-  // todo: 已知 bug , 切换 tab 时 , 会造成buildAllSuggestions 的重复调用 , 造成建议项重复 ,但不影响原有数据, 编辑器会将建议项自动缓存,不会进行去重
   /**
    * build all suggestions
    */
@@ -122,7 +107,8 @@ const CodeEdit = (props: CodeEditFormProps & connect) => {
   // memo
   const memoizedBuildAllSuggestionsCallback = useMemoCallback(buildAllSuggestionsCallback);
 
-  function reloadCompilation(monacoIns: Monaco) {
+  function reloadCompilation(monacoIns: Monaco, segmentedWords: string[]) {
+    provider.dispose();
     provider = monacoIns.languages.registerCompletionItemProvider(language, {
       provideCompletionItems: (
         model: editor.ITextModel,
@@ -130,9 +116,35 @@ const CodeEdit = (props: CodeEditFormProps & connect) => {
         context: CompletionContext
       ) => {
         const allSuggestions = memoizedBuildAllSuggestionsCallback(model, position);
+
+        // editor context
+        const wordSuggestions: SuggestionInfo[] = segmentedWords.map((word) => ({
+          key: word,
+          label: {
+            label: word,
+            detail: '',
+            description: ''
+          },
+          kind: monaco.languages.CompletionItemKind.Text,
+          insertText: word
+        }));
+        let completionList: ProviderResult<CompletionList> = buildAllSuggestionsToEditor(
+          model,
+          position,
+          wordSuggestions
+        );
+        const suggestions: Promise<languages.CompletionList> = allSuggestions.then((res) => {
+          return {
+            suggestions: [
+              ...(res?.suggestions ?? []),
+              ...(completionList as CompletionList)?.suggestions
+            ]
+          };
+        });
+
         context.triggerKind =
           monacoIns.languages.CompletionTriggerKind.TriggerForIncompleteCompletions;
-        return allSuggestions;
+        return suggestions;
       },
       resolveCompletionItem: (item: CompletionItem) => {
         return {
@@ -143,81 +155,57 @@ const CodeEdit = (props: CodeEditFormProps & connect) => {
     });
   }
 
-  // editorInstance?.current?.onDidChangeModelContent?.(() => {
-  //   console.log(editorInstance?.current, 'editorInstance')
-  //   editorInstance?.current?.trigger('action', 'editor.action.triggerSuggest');
-  // });
-
   /**
    *  editorDidMount
    * @param {editor.IStandaloneCodeEditor} editor
    * @param monacoIns
    */
   const editorDidMountChange = (editor: editor.IStandaloneCodeEditor, monacoIns: Monaco) => {
-    if (editorRef?.current && monacoRef?.current && editorDidMount) {
+    if (editorDidMount) {
       editorDidMount(editor, monacoIns);
     }
     editorInstance.current = editor;
     monacoInstance.current = monacoIns;
-    if (enableSuggestions) {
-      reloadCompilation(monacoIns);
-    }
-    // register TypeScript language service
-    monacoIns.languages.register({
-      id: language || 'typescript'
+
+    let timeoutId: NodeJS.Timeout | null = null;
+    editor.onDidChangeModelContent((e) => {
+      if (timeoutId !== null) {
+        return;
+      }
+
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+      }, 3000);
+
+      const model = editor.getModel();
+      if (model) {
+        const segmenter = new Intl.Segmenter('en', { granularity: 'word' });
+        const segments = segmenter.segment(model.getValue());
+        const segmentedWords = [];
+        for (const segment of segments) {
+          const trimmedSegment = segment.segment.trim().replace(/\n/g, '');
+          if (trimmedSegment.length > 1) {
+            segmentedWords.push(segment.segment);
+          }
+        }
+        const uniqueSegmentedWords = Array.from(new Set(segmentedWords));
+        reloadCompilation(monacoIns, uniqueSegmentedWords);
+      }
     });
 
+    if (enableSuggestions) {
+      reloadCompilation(monacoInstance.current, []);
+    }
     editor.layout();
     editor.focus();
   };
 
-  /**
-   *  handle scroll to top
-   */
-  const handleBackTop = () => {
-    editorInstance?.current?.revealLine(1);
-  };
-
-  /**
-   *  handle scroll to bottom
-   */
-  const handleBackBottom = () => {
-    editorInstance?.current?.revealLine(editorInstance?.current?.getModel()?.getLineCount());
-  };
-
-  /**
-   *  handle scroll to down
-   */
-  const handleDownScroll = () => {
-    editorInstance?.current?.setScrollPosition(
-      { scrollTop: editorInstance?.current?.getScrollTop() + 500 },
-      ScrollType.Smooth
-    );
-  };
-
-  /**
-   *  handle scroll to up
-   */
-  const handleUpScroll = () => {
-    editorInstance?.current?.setScrollPosition(
-      { scrollTop: editorInstance?.current?.getScrollTop() - 500 },
-      ScrollType.Smooth
-    );
-  };
-
   // todo: 标记错误信息
 
-  const restEditBtnProps = {
-    handleBackTop,
-    handleBackBottom,
-    handleUpScroll,
-    handleDownScroll
-  };
-
   const finalEditorOptions = {
-    ...options,
+    ...MonacoEditorOptions, // set default options
     tabCompletion: 'on', // tab 补全
-    cursorSmoothCaretAnimation: true, // 光标动画
+    cursorSmoothCaretAnimation: false, // 光标动画
     screenReaderAnnounceInlineSuggestion: true, // 屏幕阅读器提示
     formatOnPaste: true, // 粘贴时格式化
     mouseWheelZoom: true, // 鼠标滚轮缩放
@@ -231,6 +219,7 @@ const CodeEdit = (props: CodeEditFormProps & connect) => {
     readOnly, // 是否只读
     glyphMargin: true, // 字形边缘
     formatOnType: true, // 代码格式化
+    // columnSelection: true, // 列选择
     wrappingIndent:
       language === 'yaml' || language === 'yml' || language === 'json' ? 'indent' : 'none',
     inlineSuggest: {
@@ -293,18 +282,15 @@ const CodeEdit = (props: CodeEditFormProps & connect) => {
     },
     wordWrap: autoWrap,
     autoDetectHighContrast: true,
-    lineNumbers
+    lineNumbers,
+    ...options
   };
 
   return (
     <>
       <div className={'monaco-float'}>
         <Editor
-          beforeMount={(monaco: Monaco) => {
-            if (!monacoInstance?.current) {
-              monacoInstance.current = monaco;
-            }
-          }}
+          beforeMount={(monaco) => handleInitEditorAndLanguageOnBeforeMount(monaco, true)}
           width={width}
           height={height}
           value={code}
@@ -313,9 +299,10 @@ const CodeEdit = (props: CodeEditFormProps & connect) => {
           className={'editor-develop'}
           onMount={editorDidMountChange}
           onChange={onChange}
+          //zh-CN: 因为在 handleInitEditorAndLanguageOnBeforeMount 中已经注册了自定义语言，所以这里的作用仅仅是用来切换主题 不需要重新加载自定义语言的 token 样式 , 所以这里入参需要为空, 否则每次任意的 props 改变时(包括高度等),会出现编辑器闪烁的问题
+          //en-US: because the custom language has been registered in handleInitEditorAndLanguageOnBeforeMount, so the only purpose here is to switch the theme, and there is no need to reload the token style of the custom language, so the incoming parameters here need to be empty, otherwise any props change (including height, etc.) will cause the editor to flash
           theme={convertCodeEditTheme()}
         />
-        {showFloatButton && <EditorFloatBtn {...restEditBtnProps} />}
       </div>
     </>
   );

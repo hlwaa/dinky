@@ -59,9 +59,9 @@ const FooterContainer: React.FC<FooterContainerProps & StateType> = (props) => {
   const currentTab = getCurrentTab(tabs.panes ?? [], tabs.activeKey);
 
   useEffect(() => {
-    const eventSource = getSseData('/api/sse/getJvmInfo');
+    const eventSource = getSseData('/api/monitor/getJvmInfo');
     eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      const data = JSON.parse(event.data).data;
       setMemDetailInfo(
         Number(data['heapUsed'] / 1024 / 1024).toFixed(0) +
           '/' +

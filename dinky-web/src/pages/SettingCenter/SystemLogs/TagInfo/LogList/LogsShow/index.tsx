@@ -23,10 +23,9 @@ import { Empty } from 'antd';
 import React from 'react';
 
 const CodeEditProps: any = {
-  height: '100%',
   width: '100%',
   lineNumbers: 'on',
-  language: 'java'
+  language: 'javalog'
 };
 
 type LogsShowProps = {
@@ -46,7 +45,10 @@ const LogsShow: React.FC<LogsShowProps> = (props) => {
   return (
     <>
       {code ? (
-        <CodeShow {...restLogsShowProps} {...CodeEditProps} />
+        <CodeShow
+          {...{ ...restLogsShowProps, height: parent.innerHeight - 210 }}
+          {...CodeEditProps}
+        />
       ) : (
         <Empty className={'code-content-empty'} description={l('sys.info.logList.tips')} />
       )}

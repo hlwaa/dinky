@@ -18,24 +18,19 @@
  */
 
 import EditorFloatBtn from '@/components/CustomEditor/EditorFloatBtn';
-import { LoadCustomEditorLanguage } from '@/components/CustomEditor/languages';
 import { Loading } from '@/pages/Other/Loading';
 import { MonacoEditorOptions } from '@/types/Public/data';
 import { convertCodeEditTheme } from '@/utils/function';
-import { Editor, useMonaco } from '@monaco-editor/react';
+
+import { Col, Row } from 'antd';
 import { editor } from 'monaco-editor';
 import { EditorLanguage } from 'monaco-editor/esm/metadata';
-import { CSSProperties, useEffect, useRef, useState } from 'react';
-import FullscreenBtn from '../FullscreenBtn';
 
-// loader.config({monaco});
-/**
- * props
- * todo:
- *  1. Realize full screen/exit full screen in the upper right corner of the editor (Visible after opening)
- *    - The full screen button is done, but the full screen is not implemented
- *  2. Callback for right-clicking to clear logs (optional, not required)
- */
+import FullscreenBtn from '@/components/CustomEditor/FullscreenBtn';
+import { handleInitEditorAndLanguageOnBeforeMount } from '@/components/CustomEditor/function';
+import { Editor, Monaco } from '@monaco-editor/react';
+import { CSSProperties, useRef, useState } from 'react';
+
 export type CodeShowFormProps = {
   height?: string | number;
   width?: string;
@@ -43,6 +38,7 @@ export type CodeShowFormProps = {
   options?: any;
   code: string;
   lineNumbers?: string;
+  enableMiniMap?: boolean;
   autoWrap?: string;
   showFloatButton?: boolean;
   refreshLogCallback?: () => void;
@@ -74,7 +70,8 @@ const CodeShow = (props: CodeShowFormProps) => {
     autoWrap = 'on', //  auto wrap
     showFloatButton = false,
     refreshLogCallback,
-    fullScreenBtn = false
+    fullScreenBtn = false,
+    enableMiniMap = false
   } = props;
 
   const { ScrollType } = editor;
@@ -85,28 +82,19 @@ const CodeShow = (props: CodeShowFormProps) => {
   const [stopping, setStopping] = useState<boolean>(false);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(false);
   const [fullScreen, setFullScreen] = useState<boolean>(false);
-  const editorInstance = useRef<editor.IStandaloneCodeEditor | any>();
+  const editorInstance = useRef<editor.IStandaloneCodeEditor | undefined>();
+  const monacoInstance = useRef<Monaco | undefined>();
   const [timer, setTimer] = useState<NodeJS.Timer>();
-
-  // 使用编辑器钩子, 拿到编辑器实例
-  const monaco = useMonaco();
-
-  useEffect(() => {
-    convertCodeEditTheme(monaco?.editor);
-    // 需要调用 手动注册下自定义语言
-    LoadCustomEditorLanguage(monaco);
-  }, [monaco]);
 
   /**
    *  handle sync log
-   * @returns {Promise<void>}
    */
   const handleSyncLog = async () => {
     setLoading(true);
     setInterval(() => {
       refreshLogCallback?.();
-      setLoading(false);
     }, 1000);
+    setLoading(false);
   };
 
   /**
@@ -143,6 +131,7 @@ const CodeShow = (props: CodeShowFormProps) => {
    *  handle scroll to bottom
    */
   const handleBackBottom = () => {
+    // @ts-ignore
     editorInstance?.current?.revealLine(editorInstance?.current?.getModel().getLineCount());
   };
 
@@ -169,9 +158,11 @@ const CodeShow = (props: CodeShowFormProps) => {
   /**
    *  editorDidMount
    * @param {editor.IStandaloneCodeEditor} editor
+   * @param monaco {Monaco}
    */
-  const editorDidMount = (editor: editor.IStandaloneCodeEditor) => {
+  const editorDidMount = (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
     editorInstance.current = editor;
+    monacoInstance.current = monaco;
     editor.layout();
     editor.focus();
     if (scrollBeyondLastLine) {
@@ -204,72 +195,72 @@ const CodeShow = (props: CodeShowFormProps) => {
    *  render
    */
   return (
-    <div className={'monaco-float'} style={props.style}>
-      {/* fullScreen button */}
-      {fullScreenBtn && (
-        <FullscreenBtn
-          isFullscreen={fullScreen}
-          fullScreenCallBack={() => setFullScreen(!fullScreen)}
-        />
-      )}
+    <>
+      <Row wrap={false}>
+        <Col flex='auto'>
+          {/* fullScreen button */}
+          {fullScreenBtn && (
+            <FullscreenBtn
+              isFullscreen={fullScreen}
+              fullScreenCallBack={() => setFullScreen(!fullScreen)}
+            />
+          )}
 
-      {/* editor */}
-      <Editor
-        width={width}
-        height={height}
-        loading={<Loading loading={loading} />}
-        value={code ?? ''}
-        language={language}
-        options={{
-          scrollBeyondLastLine: false,
-          readOnly: true,
-          wordWrap: autoWrap,
-          autoDetectHighContrast: true,
-          selectOnLineNumbers: true,
-          fixedOverflowWidgets: true,
-          autoClosingDelete: 'always',
-          lineNumbers,
-          minimap: { enabled: false },
-          scrollbar: {
-            // Subtle shadows to the left & top. Defaults to true.
-            useShadows: false,
+          {/* editor */}
+          <Editor
+            beforeMount={(monaco) => handleInitEditorAndLanguageOnBeforeMount(monaco)}
+            width={width}
+            height={height}
+            loading={<Loading loading={loading} />}
+            value={code ?? ''}
+            language={language}
+            options={{
+              scrollBeyondLastLine: false,
+              readOnly: true,
+              glyphMargin: false,
+              wordWrap: autoWrap,
+              autoDetectHighContrast: true,
+              selectOnLineNumbers: true,
+              fixedOverflowWidgets: true,
+              autoClosingDelete: 'always',
+              lineNumbers,
+              minimap: { enabled: enableMiniMap },
+              scrollbar: {
+                // Subtle shadows to the left & top. Defaults to true.
+                useShadows: false,
 
-            // Render vertical arrows. Defaults to false.
-            // verticalHasArrows: true,
-            // Render horizontal arrows. Defaults to false.
-            // horizontalHasArrows: true,
+                // Render vertical arrows. Defaults to false.
+                // verticalHasArrows: true,
+                // Render horizontal arrows. Defaults to false.
+                // horizontalHasArrows: true,
 
-            // Render vertical scrollbar.
-            // Accepted values: 'auto', 'visible', 'hidden'.
-            // Defaults to 'auto'
-            vertical: 'visible',
-            // Render horizontal scrollbar.
-            // Accepted values: 'auto', 'visible', 'hidden'.
-            // Defaults to 'auto'
-            horizontal: 'visible',
-            verticalScrollbarSize: 8,
-            horizontalScrollbarSize: 8,
-            arrowSize: 30
-          },
-          ...options
-        }}
-        onMount={editorDidMount}
-        theme={convertCodeEditTheme()}
-      />
-
-      {/* float button */}
-      {showFloatButton && (
-        <div
-          style={{
-            width: 35,
-            height: height,
-            paddingBlock: 10
-          }}
-        >
-          <EditorFloatBtn {...restEditBtnProps} />
-        </div>
-      )}
-    </div>
+                // Render vertical scrollbar.
+                // Accepted values: 'auto', 'visible', 'hidden'.
+                // Defaults to 'auto'
+                vertical: 'visible',
+                // Render horizontal scrollbar.
+                // Accepted values: 'auto', 'visible', 'hidden'.
+                // Defaults to 'auto'
+                horizontal: 'visible',
+                verticalScrollbarSize: 8,
+                horizontalScrollbarSize: 8,
+                arrowSize: 30
+              },
+              ...options
+            }}
+            onMount={editorDidMount}
+            //zh-CN: 因为在 handleInitEditorAndLanguageOnBeforeMount 中已经注册了自定义语言，所以这里的作用仅仅是用来切换主题 不需要重新加载自定义语言的 token 样式 , 所以这里入参需要为空, 否则每次任意的 props 改变时(包括高度等),会出现编辑器闪烁的问题
+            //en-US: because the custom language has been registered in handleInitEditorAndLanguageOnBeforeMount, so the only purpose here is to switch the theme, and there is no need to reload the token style of the custom language, so the incoming parameters here need to be empty, otherwise any props change (including height, etc.) will cause the editor to flash
+            theme={convertCodeEditTheme()}
+          />
+        </Col>
+        {showFloatButton && (
+          <Col flex='none'>
+            <EditorFloatBtn {...restEditBtnProps} />
+          </Col>
+        )}
+      </Row>
+    </>
   );
 };
 
