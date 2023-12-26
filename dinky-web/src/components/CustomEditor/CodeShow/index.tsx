@@ -28,8 +28,11 @@ import { EditorLanguage } from 'monaco-editor/esm/metadata';
 
 import FullscreenBtn from '@/components/CustomEditor/FullscreenBtn';
 import { handleInitEditorAndLanguageOnBeforeMount } from '@/components/CustomEditor/function';
-import { Editor, Monaco } from '@monaco-editor/react';
+import { Editor, loader, Monaco } from '@monaco-editor/react';
+import * as monaco from 'monaco-editor';
 import { CSSProperties, useRef, useState } from 'react';
+
+loader.config({ monaco });
 
 export type CodeShowFormProps = {
   height?: string | number;
@@ -156,6 +159,14 @@ const CodeShow = (props: CodeShowFormProps) => {
   };
 
   /**
+   *  handle get downoad url
+   */
+  const handleDownloadLog = () => {
+    const blob = new Blob([code ?? 'not get content'], { type: 'text/plain' });
+    return URL.createObjectURL(blob);
+  };
+
+  /**
    *  editorDidMount
    * @param {editor.IStandaloneCodeEditor} editor
    * @param monaco {Monaco}
@@ -188,7 +199,8 @@ const CodeShow = (props: CodeShowFormProps) => {
     handleBackTop,
     handleBackBottom,
     handleUpScroll,
-    handleDownScroll
+    handleDownScroll,
+    handleDownloadLog
   };
 
   /**

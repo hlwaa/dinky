@@ -26,7 +26,6 @@ import org.dinky.data.annotations.ProcessStep;
 import org.dinky.data.app.AppParamConfig;
 import org.dinky.data.constant.CommonConstant;
 import org.dinky.data.dto.AbstractStatementDTO;
-import org.dinky.data.dto.DebugDTO;
 import org.dinky.data.dto.TaskDTO;
 import org.dinky.data.dto.TaskRollbackVersionDTO;
 import org.dinky.data.dto.TaskSubmitDto;
@@ -201,9 +200,24 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
         return jobResult;
     }
 
+    @ProcessStep(type = ProcessStepType.SUBMIT_EXECUTE)
+    public JobResult executeJob(TaskDTO task, Boolean stream) throws Exception {
+        JobResult jobResult;
+        if (stream) {
+            jobResult = BaseTask.getTask(task).StreamExecute();
+        } else {
+            jobResult = BaseTask.getTask(task).execute();
+        }
+        log.info("execute job finished,status is {}", jobResult.getStatus());
+        return jobResult;
+    }
+
     // Submit and export task
     @ProcessStep(type = ProcessStepType.SUBMIT_BUILD_CONFIG)
     public JobConfig buildJobSubmitConfig(TaskDTO task) {
+        if (Asserts.isNull(task.getType())) {
+            task.setType(GatewayType.LOCAL.getLongValue());
+        }
         task.setStatement(buildEnvSql(task) + task.getStatement());
         JobConfig config = task.getJobConfig();
         Savepoints savepoints = savepointsService.getSavePointWithStrategy(task);
@@ -238,6 +252,9 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
     // Savepoint and cancel task
     @ProcessStep(type = ProcessStepType.SUBMIT_BUILD_CONFIG)
     public JobConfig buildJobConfig(TaskDTO task) {
+        if (Asserts.isNull(task.getType())) {
+            task.setType(GatewayType.LOCAL.getLongValue());
+        }
         JobConfig config = task.getJobConfig();
         if (GatewayType.get(task.getType()).isDeployCluster()) {
             log.info("Init gateway config, type:{}", task.getType());
@@ -307,6 +324,9 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
         // The statement set is enabled by default when submitting assignments
         taskDTO.setStatementSet(true);
         JobResult jobResult = taskServiceBean.executeJob(taskDTO);
+        if ((jobResult.getStatus() == Job.JobStatus.FAILED)) {
+            throw new BusException(jobResult.getError());
+        }
         log.info("Job Submit success");
         Task task = new Task(submitDto.getId(), jobResult.getJobInstanceId());
         if (!this.updateById(task)) {
@@ -317,24 +337,24 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
 
     @Override
     @ProcessStep(type = ProcessStepType.SUBMIT_TASK)
-    public JobResult debugTask(DebugDTO debugDTO) throws Exception {
-        initTenantByTaskId(debugDTO.getId());
-
-        TaskDTO taskDTO = this.getTaskInfoById(debugDTO.getId());
+    public JobResult debugTask(TaskDTO task) throws Exception {
         // Debug mode need return result
-        taskDTO.setUseResult(true);
-        taskDTO.setUseChangeLog(debugDTO.isUseChangeLog());
-        taskDTO.setUseAutoCancel(debugDTO.isUseAutoCancel());
-        taskDTO.setMaxRowNum(debugDTO.getMaxRowNum());
+        task.setUseResult(true);
         // Debug mode need execute
-        taskDTO.setStatementSet(false);
+        task.setStatementSet(false);
         // 注解自调用会失效，这里通过获取对象方法绕过此限制
         TaskServiceImpl taskServiceBean = applicationContext.getBean(TaskServiceImpl.class);
-        JobResult jobResult = taskServiceBean.executeJob(taskDTO);
+        JobResult jobResult;
+        if (Dialect.isCommonSql(task.getDialect())) {
+            jobResult = taskServiceBean.executeJob(task, true);
+        } else {
+            jobResult = taskServiceBean.executeJob(task);
+        }
+
         if (Job.JobStatus.SUCCESS == jobResult.getStatus()) {
             log.info("Job debug success");
-            Task task = new Task(debugDTO.getId(), jobResult.getJobInstanceId());
-            if (!this.updateById(task)) {
+            Task newTask = new Task(task.getId(), jobResult.getJobInstanceId());
+            if (!this.updateById(newTask)) {
                 throw new BusException(Status.TASK_UPDATE_FAILED.getMessage());
             }
         } else {
@@ -350,7 +370,7 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
         if (!Dialect.isCommonSql(task.getDialect()) && Asserts.isNotNull(task.getJobInstanceId())) {
             String status = jobInstanceService.getById(task.getJobInstanceId()).getStatus();
             if (!JobStatus.isDone(status)) {
-                cancelTaskJob(task);
+                cancelTaskJob(task, true);
             }
         }
         return submitTask(
@@ -358,7 +378,7 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
     }
 
     @Override
-    public boolean cancelTaskJob(TaskDTO task) {
+    public boolean cancelTaskJob(TaskDTO task, boolean withSavePoint) {
         if (Dialect.isCommonSql(task.getDialect())) {
             return true;
         }
@@ -368,7 +388,7 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
         Assert.notNull(clusterInstance, Status.CLUSTER_NOT_EXIST.getMessage());
 
         JobManager jobManager = JobManager.build(buildJobConfig(task));
-        return jobManager.cancel(jobInstance.getJid());
+        return jobManager.cancel(jobInstance.getJid(), withSavePoint);
     }
 
     @Override
@@ -470,6 +490,7 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean changeTaskLifeRecyle(Integer taskId, JobLifeCycle lifeCycle) throws SqlExplainExcepition {
         TaskDTO task = getTaskInfoById(taskId);
         task.setStep(lifeCycle.getValue());
@@ -487,7 +508,14 @@ public class TaskServiceImpl extends SuperServiceImpl<TaskMapper, Task> implemen
             Integer taskVersionId = taskVersionService.createTaskVersionSnapshot(task);
             task.setVersionId(taskVersionId);
         }
-        return saveOrUpdate(task.buildTask());
+        boolean saved = saveOrUpdate(task.buildTask());
+        if (saved && Asserts.isNotNull(task.getJobInstanceId())) {
+            JobInstance jobInstance = jobInstanceService.getById(task.getJobInstanceId());
+            jobInstance.setStep(lifeCycle.getValue());
+            jobInstanceService.updateById(jobInstance);
+            log.info("jobInstance [{}] step change to {}", jobInstance.getJid(), lifeCycle.getValue());
+        }
+        return saved;
     }
 
     @Override

@@ -124,6 +124,7 @@ public enum Status {
     KICK_OUT(10024, "kick.out"),
     TOKEN_FREEZED(10025, "token.freezed"),
     NO_PREFIX(10026, "no.prefix"),
+    USER_SUPERADMIN_CANNOT_DELETE(10027, "user.superadmin.cannot.delete"),
 
     // role
     ROLE_ALREADY_EXISTS(10101, "role.already.exists"),
@@ -182,6 +183,7 @@ public enum Status {
     TASK_SQL_EXPLAN_FAILED(12007, "task.sql.explain.failed"),
     TASK_UPDATE_FAILED(12008, "task.update.failed"),
     TASK_IS_ONLINE(12009, "task.is.online"),
+    TASK_IS_EXIST(12010, "task.is.existed"),
 
     /**
      * alert instance

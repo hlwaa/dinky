@@ -66,7 +66,6 @@ export type Task = {
   clusterId: number;
   clusterConfigurationId: number;
   databaseId: number;
-  jarId: number;
   envId: number;
   alertGroupId: number;
   note: string;
@@ -78,7 +77,6 @@ export type Task = {
   savePoints: SavePoint[];
   configJson: TaskExtConfig;
   path: string;
-  jarName: string;
   clusterConfigurationName: string;
   databaseName: string;
   envName: string;
@@ -269,6 +267,7 @@ export interface DolphinTaskDefinition {
   taskParamList: TaskParamProperty[];
   taskParamMap: Map<string, string>;
   flag: string; // 0 no 1 yes
+  isCache: string; // 0 no 1 yes
   taskPriority: string; // 0 highest 1 high 2 medium 3 low 4 lowest
   userName: string;
   projectName: string;
@@ -305,6 +304,7 @@ export interface PushDolphinParams {
   timeout: number;
   timeoutFlag: boolean | string;
   flag: boolean | string;
+  isCache: boolean | string;
   timeoutNotifyStrategy: string[] | string;
   description: string;
 }

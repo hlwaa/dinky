@@ -28,7 +28,7 @@ export const TENANT_ID = 'tenantId';
 /**
  * the platform version
  */
-export const VERSION = '1.0.0-SNAPSHOT';
+export const VERSION = '1.0.0-rc1';
 
 /**
  * the platform language
@@ -40,6 +40,8 @@ export const LANGUAGE_EN = 'en-US';
 
 export const DATE_FORMAT = 'YYYY-MM-DD';
 export const DATETIME_FORMAT = 'YYYY-MM-DD HH:mm:ss';
+
+export const ENABLE_MODEL_TIP = 'enableModelTip';
 
 /**
  * REQUEST METHOD CONSTANTS

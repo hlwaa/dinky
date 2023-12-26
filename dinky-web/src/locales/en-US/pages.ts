@@ -109,6 +109,8 @@ export default {
   'datastudio.header.pushdolphin.timeoutFlagTip': 'Please select a timeout warning',
   'datastudio.header.pushdolphin.flag': 'Run flag',
   'datastudio.header.pushdolphin.flagTip': 'Please select the run flag',
+  'datastudio.header.pushdolphin.isCache': 'Cache run',
+  'datastudio.header.pushdolphin.isCacheTip': 'Please select cache run',
   'datastudio.header.pushdolphin.timeoutNotifyStrategy': 'Timeout notification strategy',
   'datastudio.header.pushdolphin.timeoutNotifyStrategyTip':
     'Please select a timeout notification strategy',
@@ -210,6 +212,12 @@ export default {
   'devops.jobinfo.version.latestVersion': 'Current Version',
   'devops.jobinfo.version.rollBack': 'Roll bcak this version',
   'devops.jobinfo.version.versionList': 'Job Version',
+  'devops.jobinfo.remap.title': 'Remap the cluster information',
+  'devops.jobinfo.remap.cluster.title': 'Cluster instance mapping information',
+  'devops.jobinfo.remap.cluster.title.help':
+    '(Note: This operation will modify the configuration of the cluster instance simultaneously.)',
+  'devops.jobinfo.remap.job.title': 'Job mapping information',
+
   'devops.joblist.detail': 'Job Detail',
   'devops.joblist.history': 'History',
   'devops.joblist.joblist': 'JobList',
@@ -656,9 +664,19 @@ export default {
   'rc.ai.wechat': 'WeChat',
   'rc.ai.wechatAtUsersPleaseHolder':
     'Please enter the @user ID (enterprise and micro user name spelled out)',
-  'rc.ai.xls.file.path': 'XLS storage directory',
-  'rc.ai.xls.file.pathPleaseHolder':
-    'Please enter the XLS storage directory! The default is /tmp/xls',
+  'rc.ai.http': 'HTTP',
+  'rc.ai.http.url': 'Request address',
+  'rc.ai.http.urlPleaseHolder': 'Please enter the request address',
+  'rc.ai.http.method': 'Request method',
+  'rc.ai.http.methodPleaseHolder': 'Please select the request method',
+  'rc.ai.http.headers': 'Request headers',
+  'rc.ai.http.body': 'Request body',
+  'rc.ai.http.contentFiled': 'Content fields',
+  'rc.ai.http.contentFiled.help':
+    "In HTTP requests, the fields in the request body are replaced with 'Alarm Message', and if there are multiple layers of nested fields, use a JSON path expression, such as text.markdown.content",
+  'rc.ai.http.titleFiled': 'Title field',
+  'rc.ai.http.titleFiled.help':
+    "In HTTP requests, the field in the request body is replaced with 'header content', if there are multiple layers of nested fields, please use a JSON path expression, such as markdown.title, if not, the title is concatenated in the content field by default",
   'rc.alert.template.create': 'Create Template',
   'rc.alert.template.modify': 'Modify Template',
   'rc.alert.template.new': 'Create an alert template',
@@ -735,7 +753,8 @@ export default {
   'rc.cc.spDir': 'SavePoint Path',
   'rc.cc.spDirHelp': 'Please enter the savepoint path! This parameter configuration item is',
   'rc.cc.sqlSubmitJarPath': 'Jar File Path',
-  'rc.cc.sqlSubmitJarPathHelp': 'Please enter the Jar file path! eg',
+  'rc.cc.sqlSubmitJarPathHelp':
+    'Please enter the Jar file path! eg: hdfs:///dinky/dinky-app-1.16-with-dependencies.jar',
   'rc.cc.start': 'Start Session Cluster',
   'rc.cc.submitSqlConfig': 'Submit FlinkSQL Config items (required in Application mode)',
   'rc.cc.tmHeap': 'TaskManager Heap Memory',

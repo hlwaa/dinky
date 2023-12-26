@@ -18,7 +18,7 @@
  */
 
 import { handleGetOption, handleOption } from '@/services/BusinessCrud';
-import { DIALECT } from '@/services/constants';
+import { API_CONSTANTS } from '@/services/endpoints';
 
 export async function explainSql(title: string, params: any) {
   return handleOption('/api/task/explainSql', title, params);
@@ -36,32 +36,17 @@ export async function executeSql(title: string, id: number) {
   return handleGetOption('/api/task/submitTask', title, { id });
 }
 
-export function cancelTask(title: string, id: number) {
-  return handleGetOption('api/task/cancel', title, { id });
+export function cancelTask(title: string, id: number, withSavePoint: boolean = true) {
+  return handleGetOption(API_CONSTANTS.CANCEL_JOB, title, { id, withSavePoint });
+}
+
+export function restartTask(title: string, id: number, isOnLine: boolean) {
+  return handleGetOption(API_CONSTANTS.RESTART_TASK, title, { id, isOnLine });
+}
+export function savePointTask(title: string, taskId: number, savePointType: string) {
+  return handleGetOption(API_CONSTANTS.SAVEPOINT, title, { taskId, savePointType });
 }
 
 export function changeTaskLife(title = '', id: number, life: number) {
   return handleGetOption('api/task/changeTaskLife', title, { taskId: id, lifeCycle: life });
 }
-
-export const isSql = (dialect: string) => {
-  if (!dialect) {
-    return false;
-  }
-  switch (dialect.toLowerCase()) {
-    case DIALECT.SQL:
-    case DIALECT.MYSQL:
-    case DIALECT.ORACLE:
-    case DIALECT.SQLSERVER:
-    case DIALECT.POSTGRESQL:
-    case DIALECT.CLICKHOUSE:
-    case DIALECT.PHOENIX:
-    case DIALECT.DORIS:
-    case DIALECT.HIVE:
-    case DIALECT.STARROCKS:
-    case DIALECT.PRESTO:
-      return true;
-    default:
-      return false;
-  }
-};

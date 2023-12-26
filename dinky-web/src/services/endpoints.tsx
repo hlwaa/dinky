@@ -225,7 +225,8 @@ export enum API_CONSTANTS {
   PROCESS_LOG = '/api/process/getProcess',
 
   // ---- devops
-  GET_JOB_LIST = '/api/jobInstance',
+  JOB_INSTANCE = '/api/jobInstance',
+  GET_JOB_INSTANCE_BY_TASK_ID = '/api/jobInstance/getJobInstanceByTaskId',
   GET_JOB_BY_ID = '/api/jobInstance/getOneById',
   GET_LATEST_HISTORY_BY_ID = '/api/history/getLatestHistoryById',
   GET_JOB_DETAIL = '/api/jobInstance/getJobInfoDetail',
@@ -238,12 +239,13 @@ export enum API_CONSTANTS {
   GET_TASKMANAGER_LIST = 'api/jobInstance/getTaskManagerList',
   GET_TASKMANAGER_LOG = 'api/jobInstance/getTaskManagerLog',
   GET_JOB_METRICS_ITEMS = 'api/jobInstance/getJobMetricsItems',
-  CANCEL_JOB = '/api/studio/cancel',
+  CANCEL_JOB = '/api/task/cancel',
   // /api/studio/getLineage
   STUDIO_GET_LINEAGE = '/api/studio/getLineage',
   // /api/jobInstance/getLineage
   JOB_INSTANCE_GET_LINEAGE = '/api/jobInstance/getLineage',
   RESTART_TASK = '/api/task/restartTask',
+  SAVEPOINT = '/api/task/savepoint',
   RESTART_TASK_FROM_CHECKPOINT = '/api/task/selectSavePointRestartTask',
   GET_SAVEPOINTS = '/api/savepoints',
   ALERT_HISTORY_LIST = '/api/alertHistory/list',

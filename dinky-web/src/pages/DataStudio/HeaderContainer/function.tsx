@@ -17,11 +17,9 @@
  *
  */
 
-import { isSql } from '@/pages/DataStudio/HeaderContainer/service';
 import { TabsPageType, TaskDataType } from '@/pages/DataStudio/model';
 import { JOB_LIFE_CYCLE, JOB_STATUS } from '@/pages/DevOps/constants';
 import { DIALECT } from '@/services/constants';
-import { EnvironmentOutlined } from '@ant-design/icons';
 
 /**
  * @description: 生成面包屑
@@ -34,7 +32,7 @@ export const buildBreadcrumbItems = (breadcrumb: string) => {
     breadcrumbName: title
   }));
 
-  return [{ title: <EnvironmentOutlined /> }, ...activeBreadcrumbTitleList];
+  return activeBreadcrumbTitleList;
 };
 
 export const projectCommonShow = (type?: TabsPageType) => {
@@ -58,4 +56,26 @@ export const isCanPushDolphin = (data: TaskDataType | undefined) => {
         data?.dialect?.toLowerCase() !== DIALECT.JAVA &&
         data?.dialect?.toLowerCase() !== DIALECT.PYTHON_LONG
     : false;
+};
+
+export const isSql = (dialect: string) => {
+  if (!dialect) {
+    return false;
+  }
+  switch (dialect.toLowerCase()) {
+    case DIALECT.SQL:
+    case DIALECT.MYSQL:
+    case DIALECT.ORACLE:
+    case DIALECT.SQLSERVER:
+    case DIALECT.POSTGRESQL:
+    case DIALECT.CLICKHOUSE:
+    case DIALECT.PHOENIX:
+    case DIALECT.DORIS:
+    case DIALECT.HIVE:
+    case DIALECT.STARROCKS:
+    case DIALECT.PRESTO:
+      return true;
+    default:
+      return false;
+  }
 };

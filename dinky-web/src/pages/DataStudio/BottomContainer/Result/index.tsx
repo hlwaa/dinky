@@ -23,7 +23,7 @@ import {
   isDataStudioTabsItemType,
   mapDispatchToProps
 } from '@/pages/DataStudio/function';
-import { isSql } from '@/pages/DataStudio/HeaderContainer/service';
+import { isSql } from '@/pages/DataStudio/HeaderContainer/function';
 import { StateType } from '@/pages/DataStudio/model';
 import { handleGetOption, handleGetOptionWithoutMsg } from '@/services/BusinessCrud';
 import { DIALECT } from '@/services/constants';
@@ -32,7 +32,7 @@ import { transformTableDataToCsv } from '@/utils/function';
 import { l } from '@/utils/intl';
 import { SearchOutlined } from '@ant-design/icons';
 import { Highlight } from '@ant-design/pro-layout/es/components/Help/Search';
-import { Button, Empty, Input, InputRef, Space, Table } from 'antd';
+import { Button, Empty, Input, InputRef, Space, Table, Tabs } from 'antd';
 import { ColumnsType, ColumnType } from 'antd/es/table';
 import { FilterConfirmProps } from 'antd/es/table/interface';
 import { DataIndex } from 'rc-table/es/interface';
@@ -44,11 +44,13 @@ type Data = {
   columns?: string[];
   rowData?: object[];
 };
+type DataList = Data[];
 const Result = (props: any) => {
   const {
     tabs: { panes, activeKey }
   } = props;
   const [data, setData] = useState<Data>({});
+  const [dataList, setDataList] = useState<DataList>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const currentTabs = getCurrentTab(panes, activeKey);
   const current = getCurrentData(panes, activeKey) ?? {};
@@ -130,6 +132,8 @@ const Result = (props: any) => {
     const consoleData = currentTabs.console;
     if (consoleData.result && !isRefresh) {
       setData(consoleData.result);
+    } else if (consoleData.results && !isRefresh) {
+      setDataList(consoleData.results);
     } else {
       if (current.dialect && current.dialect.toLowerCase() == DIALECT.FLINK_SQL) {
         // flink sql
@@ -165,8 +169,9 @@ const Result = (props: any) => {
 
   useEffect(() => {
     setData({});
+    setDataList([]);
     loadData();
-  }, [currentTabs, currentTabs?.console?.result]);
+  }, [currentTabs?.console?.result, currentTabs?.console?.results]);
 
   const getColumns = (columns: string[]) => {
     return columns?.map((item) => {
@@ -236,6 +241,23 @@ const Result = (props: any) => {
           })}
           loading={loading}
         />
+      ) : dataList.length > 0 ? (
+        <Tabs defaultActiveKey='0'>
+          {dataList.map((data, index) => {
+            return (
+              <Tabs.TabPane key={index} tab={`Table ${index + 1}`}>
+                <Table
+                  columns={getColumns(data.columns)}
+                  size='small'
+                  dataSource={data.rowData?.map((item: any, index: number) => {
+                    return { ...item, key: index };
+                  })}
+                  loading={loading}
+                />
+              </Tabs.TabPane>
+            );
+          })}
+        </Tabs>
       ) : (
         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
       )}

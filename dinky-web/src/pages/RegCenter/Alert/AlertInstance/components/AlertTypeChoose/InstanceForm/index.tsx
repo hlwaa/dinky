@@ -19,6 +19,7 @@
 
 import Email from '@/pages/RegCenter/Alert/AlertInstance/components/AlertTypeChoose/InstanceForm/Email';
 import FeiShu from '@/pages/RegCenter/Alert/AlertInstance/components/AlertTypeChoose/InstanceForm/FeiShu';
+import Http from '@/pages/RegCenter/Alert/AlertInstance/components/AlertTypeChoose/InstanceForm/Http';
 import Sms from '@/pages/RegCenter/Alert/AlertInstance/components/AlertTypeChoose/InstanceForm/Sms';
 import WeChat from '@/pages/RegCenter/Alert/AlertInstance/components/AlertTypeChoose/InstanceForm/WeChat';
 import { ALERT_TYPE_LIST_OPTIONS } from '@/pages/RegCenter/Alert/AlertInstance/constans';
@@ -39,6 +40,8 @@ const InstanceForm: React.FC<InstanceFormProps> = (props) => {
   const { values, form } = props;
 
   const [alertType, setAlertType] = useState<string>(values.type ?? ALERT_TYPE.DINGTALK);
+
+  const [formValues, setFormValues] = useState<Partial<Alert.AlertInstance>>(values);
 
   const renderPreForm = () => {
     return (
@@ -77,6 +80,8 @@ const InstanceForm: React.FC<InstanceFormProps> = (props) => {
         return <Email values={value} form={form} />;
       case ALERT_TYPE.SMS:
         return <Sms values={value} form={form} />;
+      case ALERT_TYPE.HTTP:
+        return <Http values={value} form={form} />;
       default:
         return <></>;
     }
@@ -84,10 +89,18 @@ const InstanceForm: React.FC<InstanceFormProps> = (props) => {
 
   return (
     <>
-      <ProForm.Group>
-        {renderPreForm()}
-        {renderFormByType(values, alertType)}
-      </ProForm.Group>
+      <ProForm
+        form={form}
+        onValuesChange={(changedValues, allValues) =>
+          setFormValues((prevState) => ({ ...prevState, ...allValues, ...changedValues }))
+        }
+        submitter={false}
+      >
+        <ProForm.Group>
+          {renderPreForm()}
+          {renderFormByType(formValues, alertType)}
+        </ProForm.Group>
+      </ProForm>
     </>
   );
 };

@@ -17,6 +17,7 @@
  *
  */
 
+import FlinkOptionsSelect from '@/components/Flink/OptionsSelect';
 import { SAVE_POINT_TYPE } from '@/pages/DataStudio/constants';
 import {
   getCurrentData,
@@ -305,9 +306,9 @@ const JobConfig = (props: any) => {
         >
           <ProFormGroup>
             <Space key={'config'} align='baseline'>
-              <ProFormSelect
+              <FlinkOptionsSelect
                 name='key'
-                width={calculatorWidth(rightContainer.width) + 30}
+                width={calculatorWidth(rightContainer.width) + 100}
                 mode={'single'}
                 allowClear
                 showSearch
@@ -316,7 +317,7 @@ const JobConfig = (props: any) => {
               />
               <ProFormText
                 name={'value'}
-                width={calculatorWidth(rightContainer.width) - 45}
+                width={calculatorWidth(rightContainer.width) - 100}
                 placeholder={l('pages.datastudio.label.jobConfig.addConfig.value')}
               />
             </Space>

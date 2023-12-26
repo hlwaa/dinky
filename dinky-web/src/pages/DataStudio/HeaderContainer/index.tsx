@@ -28,6 +28,7 @@ import {
   isCanPushDolphin,
   isOnline,
   isRunning,
+  isSql,
   projectCommonShow
 } from '@/pages/DataStudio/HeaderContainer/function';
 import PushDolphin from '@/pages/DataStudio/HeaderContainer/PushDolphin';
@@ -36,8 +37,7 @@ import {
   changeTaskLife,
   debugTask,
   executeSql,
-  getJobPlan,
-  isSql
+  getJobPlan
 } from '@/pages/DataStudio/HeaderContainer/service';
 import {
   DataStudioTabsItemType,
@@ -51,9 +51,10 @@ import { SysConfigStateType } from '@/pages/SettingCenter/GlobalSetting/model';
 import { SettingConfigKeyEnum } from '@/pages/SettingCenter/GlobalSetting/SettingOverView/constants';
 import { handleOption, handlePutDataJson, queryDataByParams } from '@/services/BusinessCrud';
 import { DIALECT } from '@/services/constants';
+import { API_CONSTANTS } from '@/services/endpoints';
+import { Jobs } from '@/types/DevOps/data.d';
 import { DolphinTaskDefinition, DolphinTaskMinInfo } from '@/types/Studio/data.d';
 import { l } from '@/utils/intl';
-import { SuccessMessageAsync } from '@/utils/messages';
 import {
   ApartmentOutlined,
   BugOutlined,
@@ -100,6 +101,7 @@ const HeaderContainer = (props: connect) => {
     saveTabs,
     updateJobRunningMsg,
     queryDsConfig,
+    queryTaskData,
     enabledDs
   } = props;
 
@@ -188,10 +190,22 @@ const HeaderContainer = (props: connect) => {
 
   const handlerDebug = async () => {
     if (!currentData) return;
+    // @ts-ignore
+    const editor = currentTab.monacoInstance.editor
+      .getEditors()
+      .find((x: any) => x['id'] === currentData.id);
+
+    let selectSql = '';
+    if (editor) {
+      selectSql = editor.getModel().getValueInRange(editor.getSelection());
+    }
+    if (selectSql == null || selectSql == '') {
+      selectSql = currentData.statement;
+    }
 
     const res = await debugTask(
       l('pages.datastudio.editor.debugging', '', { jobName: currentData.name }),
-      currentData
+      { ...currentData, statement: selectSql }
     );
 
     if (!res) return;
@@ -201,8 +215,18 @@ const HeaderContainer = (props: connect) => {
       jobState: res.data.status,
       runningLog: res.msg
     });
-    await SuccessMessageAsync(l('pages.datastudio.editor.debug.success'));
     currentData.status = JOB_STATUS.RUNNING;
+    // Common sql task is synchronized, so it needs to automatically update the status to finished.
+    if (isSql(currentData.dialect)) {
+      currentData.status = JOB_STATUS.FINISHED;
+      if (currentTab) currentTab.console.results = res.data.results;
+    } else {
+      if (currentTab) currentTab.console.result = res.data.result;
+    }
+    // Common sql task is synchronized, so it needs to automatically update the status to finished.
+    if (isSql(currentData.dialect)) {
+      currentData.status = JOB_STATUS.FINISHED;
+    }
     if (currentTab) currentTab.console.result = res.data.result;
     saveTabs({ ...props.tabs });
   };
@@ -224,7 +248,6 @@ const HeaderContainer = (props: connect) => {
       jobState: res.data.status,
       runningLog: res.msg
     });
-    await SuccessMessageAsync(l('pages.datastudio.editor.exec.success'));
     currentData.status = JOB_STATUS.RUNNING;
     // Common sql task is synchronized, so it needs to automatically update the status to finished.
     if (isSql(currentData.dialect)) {
@@ -255,6 +278,7 @@ const HeaderContainer = (props: connect) => {
       }
     }
     saveTabs({ ...props.tabs });
+    await queryTaskData();
   };
 
   const showDagGraph = async () => {
@@ -346,7 +370,15 @@ const HeaderContainer = (props: connect) => {
         (currentTab?.subType?.toLowerCase() == DIALECT.FLINK_SQL ||
           currentTab?.subType?.toLowerCase() == DIALECT.FLINKJAR),
       props: {
-        href: `/#/devops/job-detail?id=${currentData?.jobInstanceId}`,
+        onClick: async () => {
+          const dataByParams = await queryDataByParams<Jobs.JobInstance>(
+            API_CONSTANTS.GET_JOB_INSTANCE_BY_TASK_ID,
+            { taskId: currentData?.id }
+          );
+          if (dataByParams) {
+            window.open(`/#/devops/job-detail?id=${dataByParams?.id}`);
+          }
+        },
         target: '_blank'
       }
     },
@@ -380,7 +412,7 @@ const HeaderContainer = (props: connect) => {
         currentTab?.type == TabsPageType.project &&
         !isRunning(currentData) &&
         (currentTab?.subType?.toLowerCase() === DIALECT.FLINK_SQL ||
-          currentTab?.subType?.toLowerCase() === DIALECT.FLINKJAR),
+          isSql(currentTab?.subType?.toLowerCase() ?? '')),
       props: {
         style: { background: '#52c41a' },
         type: 'primary'
@@ -423,7 +455,13 @@ const HeaderContainer = (props: connect) => {
 
     return (
       <FlexCenterDiv style={{ width: (size.width - 2 * VIEW.paddingInline) / 2 }}>
-        <Breadcrumb separator={'/'} items={buildBreadcrumbItems(activeBreadcrumbTitle)} />
+        {/*<Breadcrumb itemRender={(item, params, items, paths)=><span>{item.title}</span>} items={buildBreadcrumbItems(activeBreadcrumbTitle)} />*/}
+        <EnvironmentOutlined style={{ paddingRight: 20 }} />
+        <Breadcrumb
+          style={{ fontSize: 12, lineHeight: VIEW.headerHeight + 'px' }}
+          separator={'/'}
+          items={buildBreadcrumbItems(activeBreadcrumbTitle)}
+        />
       </FlexCenterDiv>
     );
   };
